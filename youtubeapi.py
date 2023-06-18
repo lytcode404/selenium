@@ -1,41 +1,46 @@
-import csv
 import os
+import csv
 from dotenv import load_dotenv
 from googleapiclient.discovery import build
 
 # Load environment variables from .env file
 load_dotenv()
+
 # Get the YouTube API key from the environment variables
 api_key = os.getenv('YOUTUBE_API_KEY')
-# Check if the API key is available
-if not api_key:
-    raise ValueError('YouTube API key not found. Make sure to set the YOUTUBE_API_KEY environment variable in the .env file.')
 
+# Check if the API key is present
+if not api_key:
+    raise ValueError(
+        'YouTube API key not found. Make sure to set the YOUTUBE_API_KEY environment variable in the .env file.')
+
+# Set up the YouTube Data API client
 youtube = build('youtube', 'v3', developerKey=api_key)
 
 # Make a request to the API for trending videos
-request = youtube.videos().list(part='snippet,statistics', chart='mostPopular', regionCode='IN', maxResults=10)
+request = youtube.videos().list(part='snippet,statistics',
+                                chart='mostPopular', regionCode='IN', maxResults=50)
 response = request.execute()
 
-# Create a CSV file and write the header
-csv_file = 'trending_videos.csv'
-fieldnames = ['Video Title', 'Channel', 'View Count', 'Comment Count']
+# Open a CSV file for writing
+with open('trending_videos.csv', 'w', newline='', encoding='utf-8') as file:
+    # Create a CSV writer
+    writer = csv.writer(file)
 
-with open(csv_file, 'w', newline='', encoding='utf-8') as file:
-    writer = csv.DictWriter(file, fieldnames=fieldnames)
-    writer.writeheader()
+    # Write the header row
+    writer.writerow(['Video Title', 'Channel', 'Views', 'Comments', 'Tags'])
 
-    # Write the trending videos with view count and comment count to the CSV file
+    # Process and save the trending videos
     for item in response['items']:
         video_title = item['snippet']['title']
         video_channel = item['snippet']['channelTitle']
-        view_count = item['statistics']['viewCount']
-        comment_count = item['statistics']['commentCount']
-        writer.writerow({
-            'Video Title': video_title,
-            'Channel': video_channel,
-            'View Count': view_count,
-            'Comment Count': comment_count
-        })
+        video_views = item['statistics']['viewCount']
+        video_comments = item['statistics']['commentCount']
+        video_tags = item['snippet']['tags'] if 'tags' in item['snippet'] else []
 
-print(f'Trending videos saved to {csv_file}')
+        # Write the data to the CSV file
+        writer.writerow([video_title, video_channel, video_views,
+                        video_comments, ', '.join(video_tags)])
+
+# Notify the user that the data is saved
+print('Trending videos data saved to trending_videos.csv')
